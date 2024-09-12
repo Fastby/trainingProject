@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
       
     } else if (strcmp(sendbuf, "password") == 0) {
       
-      fgets(sendbuf, MAXLINE, stdin);//Вводится новый пароль
+      fgets(sendbuf, MAXLINE, stdin);
       sendbuf[strlen(sendbuf) - 1] = '\0';
       write(sockfd, sendbuf, strlen(sendbuf));
 
