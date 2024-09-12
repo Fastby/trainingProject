@@ -63,28 +63,15 @@ int main(int argc, char **argv) {
       write(sockfd, "login", 5);
       write(sockfd, sendbuf, strlen(sendbuf));
 
-      fgets(sendbuf, MAXLINE, stdin);
-      sendbuf[strlen(sendbuf) - 1] = '\0';
-      write(sockfd, sendbuf, strlen(sendbuf));
-
-      read(sockfd, readbuf, MAXLINE);
-      printf("%s\n", readbuf);
     } else if (strcmp(sendbuf, "logout") == 0) {
       write(sockfd, "logout", 6);
-      read(sockfd, readbuf, MAXLINE);
-      printf("%s\n", readbuf);
+      
     } else if (strcmp(sendbuf, "password") == 0) {
-      fgets(sendbuf, MAXLINE, stdin);//Вводится логин
-      sendbuf[strlen(sendbuf) - 1] = '\0';
-      write(sockfd, "password", 8);
-      write(sockfd, sendbuf, strlen(sendbuf));
-
+      
       fgets(sendbuf, MAXLINE, stdin);//Вводится новый пароль
       sendbuf[strlen(sendbuf) - 1] = '\0';
       write(sockfd, sendbuf, strlen(sendbuf));
 
-      read(sockfd, readbuf, MAXLINE);
-      printf("%s\n", readbuf);
     } else if (strcmp(sendbuf, "exit") == 0) {
       break;
     } else {
