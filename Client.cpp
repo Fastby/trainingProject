@@ -13,11 +13,14 @@ using namespace std;
 #define serv_PORT 34935
 #define SA struct sockaddr
 
+void Parse(char* buff, char* com, char* value);
+
 int main(int argc, char **argv) {
   int sockfd, n;
   char readbuf[MAXLINE + 1];
   char sendbuf[MAXLINE + 1];
-
+  char command[MAXLINE+1];
+  char command_values[MAXLINE+1];
   struct sockaddr_in servaddr;
 
   if (argc != 2) {
@@ -45,34 +48,31 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  int send_buf_size = 4096;
+  int send_buf_size = MAXLINE;
   setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &send_buf_size,
              sizeof(send_buf_size)); //для буферизации
-  int receive_buf_size = 4096;
+  int receive_buf_size = MAXLINE;
   setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &receive_buf_size,
              sizeof(receive_buf_size));
 
   while (1) {
     fgets(sendbuf, MAXLINE, stdin);
+    Parse(sendbuf,command,command_values);
     sendbuf[strlen(sendbuf) - 1] = '\0';
 
-    if (strcmp(sendbuf, "login") == 0) {
-
-      fgets(sendbuf, MAXLINE, stdin);
-      sendbuf[strlen(sendbuf) - 1] = '\0';
-      write(sockfd, "login", 5);
-      write(sockfd, sendbuf, strlen(sendbuf));
-
-    } else if (strcmp(sendbuf, "logout") == 0) {
-      write(sockfd, "logout", 6);
-      
-    } else if (strcmp(sendbuf, "password") == 0) {
-      
-      fgets(sendbuf, MAXLINE, stdin);
+    if (strcmp(command, "login") == 0) {
       sendbuf[strlen(sendbuf) - 1] = '\0';
       write(sockfd, sendbuf, strlen(sendbuf));
 
-    } else if (strcmp(sendbuf, "exit") == 0) {
+    } else if (strcmp(command, "logout") == 0) {
+      write(sockfd, command, strlen(command));
+      
+    } else if (strcmp(command, "password") == 0) {
+
+      sendbuf[strlen(sendbuf) - 1] = '\0';
+      write(sockfd, sendbuf, strlen(sendbuf));
+
+    } else if (strcmp(command, "exit") == 0) {
       break;
     } else {
       printf("Wrong input\n");
@@ -80,4 +80,8 @@ int main(int argc, char **argv) {
   }
 
   exit(0);
+}
+
+void Parse(char* buff, char* com, char* value){
+  sscanf(buff, "%s %s", com, value);
 }

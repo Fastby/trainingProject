@@ -22,7 +22,7 @@ void handle_client();
 int main(int argc, char **argv) {
   int listenfd, connfd;
   struct sockaddr_in servaddr;
-  char buff[MAXLINE];
+  char buff[MAXLINE], login[MAXLINE];
   time_t ticks;
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
   if (listenfd < 0) {
@@ -71,4 +71,3 @@ int logout(int *connfd) {
   return result;
 }
 
-int change_password(char new_password[MAXLINE]) { return 1; }
