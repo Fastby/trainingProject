@@ -13,14 +13,21 @@ using namespace std;
 #define serv_PORT 34935
 #define SA struct sockaddr
 
-void Parse(char* buff, char* com, char* value);
+void Parse(char *buff, char *com);
+void add_to_sendbuf(char *message, int message_size);
+void add_to_recvbuf(char *message, int message_size);
+
+char *recvbuf = NULL;
+int recvbuf_size = 0;
+char *sendbuf = NULL;
+int sendbuf_size = 0;
 
 int main(int argc, char **argv) {
   int sockfd, n;
-  char readbuf[MAXLINE + 1];
-  char sendbuf[MAXLINE + 1];
-  char command[MAXLINE+1];
-  char command_values[MAXLINE+1];
+
+  char command[MAXLINE + 1];
+  char buff[MAXLINE + 1];
+  char command_values[MAXLINE + 1];
   struct sockaddr_in servaddr;
 
   if (argc != 2) {
@@ -48,40 +55,94 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  int send_buf_size = MAXLINE;
-  setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &send_buf_size,
-             sizeof(send_buf_size)); //для буферизации
-  int receive_buf_size = MAXLINE;
-  setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &receive_buf_size,
-             sizeof(receive_buf_size));
-
   while (1) {
-    fgets(sendbuf, MAXLINE, stdin);
-    Parse(sendbuf,command,command_values);
-    sendbuf[strlen(sendbuf) - 1] = '\0';
+    fgets(buff, MAXLINE, stdin);
+
+    Parse(buff, command);
 
     if (strcmp(command, "login") == 0) {
-      sendbuf[strlen(sendbuf) - 1] = '\0';
-      write(sockfd, sendbuf, strlen(sendbuf));
+      buff[strlen(buff) - 1] = '\0';
+      add_to_sendbuf(buff, strlen(buff));
 
     } else if (strcmp(command, "logout") == 0) {
-      write(sockfd, command, strlen(command));
-      
-    } else if (strcmp(command, "password") == 0) {
+      buff[strlen(buff) - 1] = '\0';
+      add_to_sendbuf(buff, strlen(buff));
 
-      sendbuf[strlen(sendbuf) - 1] = '\0';
-      write(sockfd, sendbuf, strlen(sendbuf));
+    } else if (strcmp(command, "password") == 0) {
+      buff[strlen(buff) - 1] = '\0';
+      add_to_sendbuf(buff, strlen(buff));
 
     } else if (strcmp(command, "exit") == 0) {
       break;
     } else {
       printf("Wrong input\n");
     }
-  }
 
+    /*
+        Циклы для прохода по буферам и
+        вывода на экран из буфера receive
+        отправки серверу из буфера send
+    */
+    while (strchr(sendbuf, '\0') != NULL) {
+      char *delim = strchr(sendbuf, '\0');
+      char line[MAXLINE];
+      strncpy(line, sendbuf, delim - sendbuf);
+      line[delim - sendbuf] = '\0';
+      int bytes_sent;
+      while ((bytes_sent = send(sockfd, line, strlen(line), 0)) == 0) {
+        cerr << "проблема с отправкой сообщения, повтор" << endl;
+      }
+      char *new_buf = (char *)realloc(sendbuf, sendbuf_size - bytes_sent + 1);
+      memcpy(new_buf, sendbuf + bytes_sent + 1, sendbuf_size - bytes_sent);
+      sendbuf = new_buf;
+      sendbuf_size -= bytes_sent + 1;
+      sendbuf[sendbuf_size] = '\0';
+    }
+
+    while ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {
+      add_to_recvbuf(buff, n);
+    }
+    
+    while (strchr(recvbuf, '\n') != NULL) {
+      char *delim = strchr(recvbuf, '\n');
+      char line[MAXLINE];
+      strncpy(line, recvbuf, delim - recvbuf);
+      line[delim - recvbuf] = '\0';
+      int line_size = strlen(line);
+      cout << line << endl;
+      char *new_buf = (char *)realloc(recvbuf, recvbuf_size - line_size + 1);
+      memcpy(new_buf, recvbuf + line_size + 1, recvbuf_size - line_size);
+      recvbuf = new_buf;
+      recvbuf_size -= line_size + 1;
+      recvbuf[recvbuf_size] = '\0';
+    }
+  }
+  close(sockfd);
+  free(recvbuf);
+  free(sendbuf);
   exit(0);
 }
 
-void Parse(char* buff, char* com, char* value){
-  sscanf(buff, "%s %s", com, value);
+void Parse(char *buff, char *com) {
+  char *space = strchr(buff, ' ');
+  if (space != NULL) {
+    strncpy(com, buff, space - buff);
+    com[space - buff] = '\0';
+  } else {
+    strcpy(com, buff);
+    com[strlen(com) - 1] = '\0';
+  }
+}
+void add_to_sendbuf(char *message, int message_size) {
+  sendbuf = (char *)realloc(sendbuf, sendbuf_size + message_size);
+  memcpy(sendbuf + sendbuf_size, message, message_size);
+  sendbuf_size += message_size;
+  sendbuf[sendbuf_size] = '\0';
+}
+
+void add_to_recvbuf(char *message, int message_size) {
+  recvbuf = (char *)realloc(recvbuf, recvbuf_size + message_size);
+  memcpy(recvbuf + recvbuf_size, message, message_size);
+  recvbuf_size += message_size;
+  recvbuf[recvbuf_size] = '\0';
 }

@@ -14,16 +14,29 @@ using namespace std;
 #define SA struct sockaddr
 #define LISTENQ 1024
 
-int loginUser(char login[MAXLINE], char password[MAXLINE]);
-int logout(int *connfd);
-int change_password(char new_password[MAXLINE]);
-void handle_client();
+int check_login(char login[MAXLINE]);
+
+int check_password(char login[MAXLINE], char* password_input); 
+
+int logout();
+
+int calculate(char* expression);
+
+void Parse(char *buff, char *com);
+
+void add_to_sendbuf(char *message, int message_size);
+
+void add_to_recvbuf(char *message, int message_size);
+
+char *recvbuf = NULL;
+char *sendbuf = NULL;
+int sendbuf_size = 0, recvbuf_size = 0;
 
 int main(int argc, char **argv) {
-  int listenfd, connfd;
+
+  int listenfd, connfd, n = 0;
   struct sockaddr_in servaddr;
   char buff[MAXLINE], login[MAXLINE];
-  time_t ticks;
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
   if (listenfd < 0) {
     perror("socket");
@@ -42,32 +55,84 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  connfd = accept(listenfd, (SA *)NULL, NULL);
   while (true) {
-    connfd = accept(listenfd, (SA *)NULL, NULL);
-    read(connfd, buff, MAXLINE);
-    if (strcmp(buff, "login") == 0) {
-      char login[MAXLINE], password[MAXLINE];
-      read(connfd, login, MAXLINE);
-      read(connfd, password, MAXLINE);
-      if (loginUser(login, password) == 1) {
+    while ((n = recv(connfd, buff, MAXLINE, 0)) > 0) {
+      add_to_recvbuf(buff, n);
+    }
+
+    while (strchr(recvbuf, '\n') != NULL) { //Дописать, реализовать выбор из буфера команды и вызов функции под команду
+      char *delim = strchr(recvbuf, '\n');
+      char command[MAXLINE + 1];
+      strncpy(buff, recvbuf, delim - recvbuf);
+      buff[delim - recvbuf] = '\0';
+      int line_size = strlen(buff);
+      Parse(buff, command);
+
+      if (strcmp(command, "login") == 0) {
+        check_login();
+
+      } else if (strcmp(command, "logout") == 0) {
+        logout();
+
+      } else if (strcmp(command, "password") == 0) {
+        check_password();
+
+      } else if (strcmp(command, "calc") == 0) {
+        calculate();
       }
-    } else if (strcmp(buff, "logout") == 0) {
-      logout(&connfd);
-    } else if (strcmp(buff, "password") == 0) {
-      char login[MAXLINE], new_password[MAXLINE];
-      read(connfd, login, MAXLINE);
-      read(connfd, new_password, MAXLINE);
-      change_password(new_password);
+
+      char *new_buf = (char *)realloc(recvbuf, recvbuf_size - line_size + 1);
+      memcpy(new_buf, recvbuf + line_size + 1, recvbuf_size - line_size);
+      recvbuf = new_buf;
+      recvbuf_size -= line_size + 1;
+      recvbuf[recvbuf_size] = '\0';
+    }
+
+    while (strchr(sendbuf, '\0') != NULL) {
+      char *delim = strchr(sendbuf, '\0');
+      char line[MAXLINE];
+      strncpy(line, sendbuf, delim - sendbuf);
+      line[delim - sendbuf] = '\0';
+      int bytes_sent;
+      while ((bytes_sent = send(connfd, line, strlen(line), 0)) == 0) {
+        cerr << "проблема с отправкой сообщения, повтор" << endl;
+      }
+      char *new_buf = (char *)realloc(sendbuf, sendbuf_size - bytes_sent + 1);
+      memcpy(new_buf, sendbuf + bytes_sent + 1, sendbuf_size - bytes_sent);
+      sendbuf = new_buf;
+      sendbuf_size -= bytes_sent + 1;
+      sendbuf[sendbuf_size] = '\0';
     }
   }
 }
 
-int loginUser(char login[MAXLINE], char password[MAXLINE]) { return 1;}//Временное решение, надо дописать логику проверки логина и пароля
+int check_login(char login_input[MAXLINE]) {}/*Проверяет наличие введенного логина в бд*/
 
-int logout(int *connfd) {
-  int result = 0;
-  if (close(*connfd) == -1)
-    result = 1;
-  return result;
+int check_password(char login[MAXLINE], char* password_input) {} /*Сверяет пароль для введенного логина из бд с введенным паролем*/
+
+int logout() {}//Сбрасывает login и password
+
+void Parse(char *buff, char *com) {//требуется дописать для получения значения команды
+  char *space = strchr(buff, ' ');
+  if (space != NULL) {
+    strncpy(com, buff, space - buff);
+    com[space - buff] = '\0';
+  } else {
+    strcpy(com, buff);
+    com[strlen(com) - 1] = '\0';
+  }
+}
+void add_to_sendbuf(char *message, int message_size) {
+  sendbuf = (char *)realloc(sendbuf, sendbuf_size + message_size);
+  memcpy(sendbuf + sendbuf_size, message, message_size);
+  sendbuf_size += message_size;
+  sendbuf[sendbuf_size] = '\0';
 }
 
+void add_to_recvbuf(char *message, int message_size) {
+  recvbuf = (char *)realloc(recvbuf, recvbuf_size + message_size);
+  memcpy(recvbuf + recvbuf_size, message, message_size);
+  recvbuf_size += message_size;
+  recvbuf[recvbuf_size] = '\0';
+}
