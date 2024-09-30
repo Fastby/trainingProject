@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     } else if (ret == 0) {
       printf("Таймаут\n");
     } else {
-      // Проверка сокетов
+      
       if (FD_ISSET(sockfd, &readfds)) {
         printf("Сокет 1 готов для чтения\n");
         while ((n = recv(sockfd, buff, MAXLINE, 0)) > 0)

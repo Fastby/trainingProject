@@ -71,11 +71,10 @@ int main(int argc, char **argv) {
     } else if (ret == 0) {
       printf("Таймаут\n");
     } else {
-      // Проверка сокетов
-      if (FD_ISSET(connfd, &readfds)) {
-        printf("Сокет 1 готов для чтения\n");
-        while ((n = recv(connfd, buff, MAXLINE, 0)) > 0)
-          recvbuf.add_to_buff(buff, n);
+      
+      if (FD_ISSET(connfd, &readfds)) {//переписать под логику сервера
+        
+        while ((n = recv(connfd, buff, MAXLINE, 0)) > 0)recvbuf.add_to_buff(buff, n);
         while (recvbuf.get_delim() != NULL) {
           char line[MAXLINE];
           strncpy(line, recvbuf.get_buff(),recvbuf.get_delim() - recvbuf.get_buff());
@@ -83,10 +82,11 @@ int main(int argc, char **argv) {
           cout << line << endl;
           recvbuf.delete_from_buff(strlen(line));
         }
+        while()
       }
     }
     if (FD_ISSET(connfd, &writefds)) {
-      printf("Сокет 2 готов для записи\n");
+      
       while (sendbuf.get_delim() != NULL) {
         char line[MAXLINE];
         strncpy(line, sendbuf.get_buff(),sendbuf.get_delim() - sendbuf.get_buff());

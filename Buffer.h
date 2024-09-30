@@ -45,4 +45,7 @@ public:
     int get_buff_size(){
         return buff_size;
     }
+
+    char* get_command(){ 
+    }
 };
