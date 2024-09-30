@@ -1,11 +1,12 @@
-#include <arpa/inet.h>
-#include <cstring>
 #include <errno.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
+#include "Buffer.h"
 
 using namespace std;
 
@@ -14,9 +15,9 @@ using namespace std;
 #define SA struct sockaddr
 #define LISTENQ 1024
 
-int check_login(char login[MAXLINE]);
+int check_login(char login_input[MAXLINE]);
 
-int check_password(char login[MAXLINE], char* password_input); 
+int check_password(char* password_input); 
 
 int logout();
 
@@ -24,19 +25,26 @@ int calculate(char* expression);
 
 void Parse(char *buff, char *com);
 
-void add_to_sendbuf(char *message, int message_size);
-
-void add_to_recvbuf(char *message, int message_size);
-
-char *recvbuf = NULL;
-char *sendbuf = NULL;
-int sendbuf_size = 0, recvbuf_size = 0;
+Buffer recvbuf = Buffer();
+Buffer sendbuf = Buffer();
+char* login = NULL;
+char* password = NULL;
 
 int main(int argc, char **argv) {
+  fd_set readfds, writefds;
+  struct timeval timeout;
+  
+
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
 
   int listenfd, connfd, n = 0;
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_SET(connfd, &readfds);
+  FD_SET(connfd, &writefds);
   struct sockaddr_in servaddr;
-  char buff[MAXLINE], login[MAXLINE];
+  char buff[MAXLINE];
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
   if (listenfd < 0) {
     perror("socket");
@@ -57,82 +65,67 @@ int main(int argc, char **argv) {
 
   connfd = accept(listenfd, (SA *)NULL, NULL);
   while (true) {
-    while ((n = recv(connfd, buff, MAXLINE, 0)) > 0) {
-      add_to_recvbuf(buff, n);
-    }
-
-    while (strchr(recvbuf, '\n') != NULL) { //Дописать, реализовать выбор из буфера команды и вызов функции под команду
-      char *delim = strchr(recvbuf, '\n');
-      char command[MAXLINE + 1];
-      strncpy(buff, recvbuf, delim - recvbuf);
-      buff[delim - recvbuf] = '\0';
-      int line_size = strlen(buff);
-      Parse(buff, command);
-
-      if (strcmp(command, "login") == 0) {
-        check_login();
-
-      } else if (strcmp(command, "logout") == 0) {
-        logout();
-
-      } else if (strcmp(command, "password") == 0) {
-        check_password();
-
-      } else if (strcmp(command, "calc") == 0) {
-        calculate();
+    int ret = select(connfd + 1, &readfds, &writefds, NULL, &timeout);
+    if (ret == -1) {
+      perror("select");
+    } else if (ret == 0) {
+      printf("Таймаут\n");
+    } else {
+      // Проверка сокетов
+      if (FD_ISSET(connfd, &readfds)) {
+        printf("Сокет 1 готов для чтения\n");
+        while ((n = recv(connfd, buff, MAXLINE, 0)) > 0)
+          recvbuf.add_to_buff(buff, n);
+        while (recvbuf.get_delim() != NULL) {
+          char line[MAXLINE];
+          strncpy(line, recvbuf.get_buff(),recvbuf.get_delim() - recvbuf.get_buff());
+          line[recvbuf.get_delim() - recvbuf.get_buff()] = '\0';
+          cout << line << endl;
+          recvbuf.delete_from_buff(strlen(line));
+        }
       }
-
-      char *new_buf = (char *)realloc(recvbuf, recvbuf_size - line_size + 1);
-      memcpy(new_buf, recvbuf + line_size + 1, recvbuf_size - line_size);
-      recvbuf = new_buf;
-      recvbuf_size -= line_size + 1;
-      recvbuf[recvbuf_size] = '\0';
     }
-
-    while (strchr(sendbuf, '\0') != NULL) {
-      char *delim = strchr(sendbuf, '\0');
-      char line[MAXLINE];
-      strncpy(line, sendbuf, delim - sendbuf);
-      line[delim - sendbuf] = '\0';
-      int bytes_sent;
-      while ((bytes_sent = send(connfd, line, strlen(line), 0)) == 0) {
-        cerr << "проблема с отправкой сообщения, повтор" << endl;
+    if (FD_ISSET(connfd, &writefds)) {
+      printf("Сокет 2 готов для записи\n");
+      while (sendbuf.get_delim() != NULL) {
+        char line[MAXLINE];
+        strncpy(line, sendbuf.get_buff(),sendbuf.get_delim() - sendbuf.get_buff());
+        line[sendbuf.get_delim() - sendbuf.get_buff()] = '\0';
+        int bytes_sent;
+        while ((bytes_sent = send(connfd, line, strlen(line), 0)) == 0) {
+          cerr << "проблема с отправкой сообщения, повтор" << endl;
+        }
+        sendbuf.delete_from_buff(strlen(line));
       }
-      char *new_buf = (char *)realloc(sendbuf, sendbuf_size - bytes_sent + 1);
-      memcpy(new_buf, sendbuf + bytes_sent + 1, sendbuf_size - bytes_sent);
-      sendbuf = new_buf;
-      sendbuf_size -= bytes_sent + 1;
-      sendbuf[sendbuf_size] = '\0';
     }
   }
 }
 
-int check_login(char login_input[MAXLINE]) {}/*Проверяет наличие введенного логина в бд*/
+int check_login(char* login_input) {
+  login = (char*)realloc(login,strlen(login_input));
+  memcpy(login, login_input,strlen(login_input));
+}/*Проверяет наличие введенного логина в бд*/
 
-int check_password(char login[MAXLINE], char* password_input) {} /*Сверяет пароль для введенного логина из бд с введенным паролем*/
+int check_password(char* password_input) {
+  password = (char*)realloc(password,strlen(password_input));
+  memcpy(password,password_input,strlen(password_input));
+} /*Сверяет пароль для введенного логина из бд с введенным паролем*/
 
-int logout() {}//Сбрасывает login и password
+int logout() {
+  login = NULL;
+  password = NULL;
+}//Сбрасывает login и password
 
-void Parse(char *buff, char *com) {//требуется дописать для получения значения команды
+void Parse(char *buff, char *com, char *val) {//требуется дописать для получения значения команды
   char *space = strchr(buff, ' ');
   if (space != NULL) {
     strncpy(com, buff, space - buff);
     com[space - buff] = '\0';
+    strncpy(val,space + 1,strlen(space + 1));
+    val[strlen(space+1)] = '\0';
   } else {
     strcpy(com, buff);
-    com[strlen(com) - 1] = '\0';
+    com[strlen(com)] = '\0';
+    val[0] = '\0';
   }
-}
-void add_to_sendbuf(char *message, int message_size) {
-  sendbuf = (char *)realloc(sendbuf, sendbuf_size + message_size);
-  memcpy(sendbuf + sendbuf_size, message, message_size);
-  sendbuf_size += message_size;
-  sendbuf[sendbuf_size] = '\0';
-}
-
-void add_to_recvbuf(char *message, int message_size) {
-  recvbuf = (char *)realloc(recvbuf, recvbuf_size + message_size);
-  memcpy(recvbuf + recvbuf_size, message, message_size);
-  recvbuf_size += message_size;
-  recvbuf[recvbuf_size] = '\0';
 }
