@@ -1,6 +1,6 @@
 #pragma once
 #include<iostream>
-
+#include<cstring>
 
 class Buffer{
 private: 
@@ -47,5 +47,6 @@ public:
     }
 
     char* get_command(){ 
+        return buff;
     }
 };

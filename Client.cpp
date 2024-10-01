@@ -15,8 +15,6 @@ using namespace std;
 #define SA struct sockaddr
 
 void Parse(char *buff, char *com);
-void add_to_sendbuf(char *message, int message_size);
-void add_to_recvbuf(char *message, int message_size);
 
 Buffer recvbuf = Buffer();
 Buffer sendbuf = Buffer();
@@ -42,10 +40,7 @@ int main(int argc, char **argv) {
     cerr << "Error: problem in creating socket" << endl;
     exit(1);
   }
-  FD_ZERO(&readfds);
-  FD_ZERO(&writefds);
-  FD_SET(sockfd, &readfds);
-  FD_SET(sockfd, &writefds);
+  
 
   timeout.tv_sec = 5;
   timeout.tv_usec = 0;
@@ -65,10 +60,15 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  while (1) {
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_SET(sockfd, &readfds);
+  FD_SET(sockfd, &writefds);
 
+  while (1) {
+    cout<<"Enter command"<<endl;
     fgets(buff, MAXLINE, stdin);
-    add_to_sendbuf(buff, strlen(buff));
+    sendbuf.add_to_buff(buff,strlen(buff));
 
     int ret = select(sockfd + 1, &readfds, &writefds, NULL, &timeout);
     if (ret == -1) {
@@ -78,7 +78,6 @@ int main(int argc, char **argv) {
     } else {
       
       if (FD_ISSET(sockfd, &readfds)) {
-        printf("Сокет 1 готов для чтения\n");
         while ((n = recv(sockfd, buff, MAXLINE, 0)) > 0)
           recvbuf.add_to_buff(buff, n);
         while (recvbuf.get_delim() != NULL) {
@@ -91,7 +90,7 @@ int main(int argc, char **argv) {
       }
     }
     if (FD_ISSET(sockfd, &writefds)) {
-      printf("Сокет 2 готов для записи\n");
+
       while (sendbuf.get_delim() != NULL) {
         char line[MAXLINE];
         strncpy(line, sendbuf.get_buff(),sendbuf.get_delim() - sendbuf.get_buff());
@@ -102,6 +101,7 @@ int main(int argc, char **argv) {
         }
         sendbuf.delete_from_buff(strlen(line));
       }
+
     }
   }
 

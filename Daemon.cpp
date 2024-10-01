@@ -64,7 +64,9 @@ int main(int argc, char **argv) {
   }
 
   connfd = accept(listenfd, (SA *)NULL, NULL);
+  
   while (true) {
+    if(connfd = NULL)break;
     int ret = select(connfd + 1, &readfds, &writefds, NULL, &timeout);
     if (ret == -1) {
       perror("select");
@@ -72,9 +74,10 @@ int main(int argc, char **argv) {
       printf("Таймаут\n");
     } else {
       
-      if (FD_ISSET(connfd, &readfds)) {//переписать под логику сервера
+      if (FD_ISSET(connfd, &readfds)) {
         
-        while ((n = recv(connfd, buff, MAXLINE, 0)) > 0)recvbuf.add_to_buff(buff, n);
+        while ((n = recv(connfd, buff, MAXLINE, 0)) > 0)
+          recvbuf.add_to_buff(buff, n);
         while (recvbuf.get_delim() != NULL) {
           char line[MAXLINE];
           strncpy(line, recvbuf.get_buff(),recvbuf.get_delim() - recvbuf.get_buff());
@@ -82,11 +85,9 @@ int main(int argc, char **argv) {
           cout << line << endl;
           recvbuf.delete_from_buff(strlen(line));
         }
-        while()
       }
     }
     if (FD_ISSET(connfd, &writefds)) {
-      
       while (sendbuf.get_delim() != NULL) {
         char line[MAXLINE];
         strncpy(line, sendbuf.get_buff(),sendbuf.get_delim() - sendbuf.get_buff());
@@ -99,6 +100,8 @@ int main(int argc, char **argv) {
       }
     }
   }
+
+  exit(0);
 }
 
 int check_login(char* login_input) {
