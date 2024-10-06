@@ -2,40 +2,26 @@
 #include<iostream>
 #include<cstring>
 
+#define MAXLINE_BUFF 4096
+
 class Buffer{
 private: 
-    char* buff;
-    int buff_size;
-
+    char buff[MAXLINE_BUFF] = "\0";
 public:
     void add_to_buff(char* message, int message_size){
-        buff = (char *)realloc(buff, buff_size + message_size);
-        memcpy(buff + buff_size, message, message_size);
-        buff_size += message_size;
-        buff[buff_size] = '\0';
+        memcpy(buff + strlen(buff), message, message_size);
     }
 
     void delete_from_buff(int message_size){
-        char* new_buf = (char*)realloc(buff,buff_size - message_size + 1);
-        memcpy(new_buf, buff + message_size + 1, buff_size - message_size);
-        buff = new_buf;
-        buff_size -= message_size + 1;
-        buff[buff_size] = '\0';
-    }
-
-    char* get_delim(){
-        char* delim = NULL;
-        delim = strchr(buff,'\n');
-        return delim;
+        char new_buf[strlen(buff)-message_size];
+        memcpy(new_buf,buff+message_size,strlen(buff)-message_size);
+        strcpy(buff,new_buf);
     }
 
     Buffer(){
-        buff = NULL;
-        buff_size = 0;
     }
 
     ~Buffer(){
-        free(buff);
     }
 
     char* get_buff(){
@@ -43,10 +29,6 @@ public:
     }
 
     int get_buff_size(){
-        return buff_size;
-    }
-
-    char* get_command(){ 
-        return buff;
+        return strlen(buff);
     }
 };

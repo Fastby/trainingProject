@@ -10,48 +10,38 @@
 
 using namespace std;
 
-#define MAXLINE 4096
+#define MAXLINE 100
 #define serv_PORT 34935
 #define SA struct sockaddr
 
-void Parse(char *buff, char *com);
+char* get_delim(char* message);
 
-Buffer recvbuf = Buffer();
-Buffer sendbuf = Buffer();
-int sendbuf_size = 0;
-
-int main(int argc, char **argv) {
-  int sockfd, n;
-  fd_set readfds, writefds;
-
-  char command[MAXLINE + 1];
-  char buff[MAXLINE + 1];
-  char command_values[MAXLINE + 1];
-
-  struct sockaddr_in servaddr;
-  struct timeval timeout;
-
-  if (argc != 2) {
-    cerr << "Error: <IP address of the server>" << endl;
-    exit(1);
-  }
-
-  if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    cerr << "Error: problem in creating socket" << endl;
-    exit(1);
-  }
+int main(/*int argc, char **argv*/) {
   
+  
+//  if (argc != 2) {
+//    cerr << "Error: <IP address of the server>" << endl;
+//    exit(1);
+//  }
 
+  struct timeval timeout;
   timeout.tv_sec = 5;
   timeout.tv_usec = 0;
 
+  struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr(argv[1]);
+  servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   servaddr.sin_port = htons(serv_PORT);
 
-  if (inet_pton(AF_INET, argv[1], &servaddr.sin_addr) <= 0) {
-    cerr << ("Error: inet_pton error for %s", argv[1]);
+  if (inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr) <= 0) {
+    cerr << ("Error: inet_pton error for %s", "127.0.0.1");
+    exit(1);
+  }
+
+  int sockfd;
+  if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    cerr << "Error: problem in creating socket" << endl;
     exit(1);
   }
 
@@ -59,64 +49,76 @@ int main(int argc, char **argv) {
     cerr << ("Error: problem in connecting to the server");
     exit(1);
   }
-
-  FD_ZERO(&readfds);
-  FD_ZERO(&writefds);
-  FD_SET(sockfd, &readfds);
-  FD_SET(sockfd, &writefds);
-
+  cout<<"CONNECTED\n";
+  fd_set readfds, writefds;
+  Buffer sendbuf = Buffer();
+  Buffer recvbuf = Buffer();
   while (1) {
-    cout<<"Enter command"<<endl;
-    fgets(buff, MAXLINE, stdin);
-    sendbuf.add_to_buff(buff,strlen(buff));
-
-    int ret = select(sockfd + 1, &readfds, &writefds, NULL, &timeout);
+    FD_ZERO(&readfds);
+    FD_ZERO(&writefds);
+    FD_SET(sockfd, &readfds);
+    FD_SET(sockfd, &writefds);
+    char buff[MAXLINE + 1];
+    int ret = select(sockfd + 1, &readfds, &writefds, NULL, NULL);
     if (ret == -1) {
       perror("select");
     } else if (ret == 0) {
       printf("Таймаут\n");
     } else {
-      
-      if (FD_ISSET(sockfd, &readfds)) {
-        while ((n = recv(sockfd, buff, MAXLINE, 0)) > 0)
-          recvbuf.add_to_buff(buff, n);
-        while (recvbuf.get_delim() != NULL) {
+      if (FD_ISSET(sockfd, &writefds)) {
+        cout<<"Enter command\n";
+        fgets(buff, MAXLINE, stdin);
+        sendbuf.add_to_buff(buff,strlen(buff));
+        while (get_delim(sendbuf.get_buff()) != NULL) {
+          char* delim = get_delim(sendbuf.get_buff());
           char line[MAXLINE];
-          strncpy(line, recvbuf.get_buff(),recvbuf.get_delim() - recvbuf.get_buff());
-          line[recvbuf.get_delim() - recvbuf.get_buff()] = '\0';
-          cout << line << endl;
-          recvbuf.delete_from_buff(strlen(line));
+          strncpy(line, sendbuf.get_buff(),delim - sendbuf.get_buff()+1);
+          line[strlen(line)] = '\0';
+          while (send(sockfd, line, strlen(line), 0) < 0) {
+            cerr << "проблема с отправкой сообщения, повтор" << endl;
+          }
+          sendbuf.delete_from_buff(strlen(line));
+          memset(line,0,sizeof(line));
+        }
+        int n;
+        if((n = recv(sockfd,buff,MAXLINE, 0)) > 0){
+          recvbuf.add_to_buff(buff, n);
+          while ((get_delim(recvbuf.get_buff())) != NULL) {
+            char* delim = get_delim(recvbuf.get_buff());
+            char line[MAXLINE];
+            strncpy(line, recvbuf.get_buff(),delim - recvbuf.get_buff());
+            line[delim - recvbuf.get_buff()] = '\0';
+            cout << line << endl;
+            recvbuf.delete_from_buff(strlen(line));
+          }
         }
       }
-    }
-    if (FD_ISSET(sockfd, &writefds)) {
 
-      while (sendbuf.get_delim() != NULL) {
-        char line[MAXLINE];
-        strncpy(line, sendbuf.get_buff(),sendbuf.get_delim() - sendbuf.get_buff());
-        line[sendbuf.get_delim() - sendbuf.get_buff()] = '\0';
-        int bytes_sent;
-        while ((bytes_sent = send(sockfd, line, strlen(line), 0)) == 0) {
-          cerr << "проблема с отправкой сообщения, повтор" << endl;
+/*
+      if (FD_ISSET(sockfd, &readfds)) {
+        int n = 0;
+        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0){
+          recvbuf.add_to_buff(buff, n);
+          while ((get_delim(recvbuf.get_buff())) != NULL) {
+            char* delim = get_delim(recvbuf.get_buff());
+            char line[MAXLINE];
+            strncpy(line, recvbuf.get_buff(),delim - recvbuf.get_buff());
+            line[delim - recvbuf.get_buff()] = '\0';
+            cout << line << endl;
+            recvbuf.delete_from_buff(strlen(line));
+          }
         }
-        sendbuf.delete_from_buff(strlen(line));
       }
+*/
 
     }
+    
   }
-
   close(sockfd);
-
-  exit(0);
+  return 0;
 }
 
-void Parse(char *buff, char *com) {
-  char *space = strchr(buff, ' ');
-  if (space != NULL) {
-    strncpy(com, buff, space - buff);
-    com[space - buff] = '\0';
-  } else {
-    strcpy(com, buff);
-    com[strlen(com) - 1] = '\0';
-  }
+char* get_delim(char* message){
+  char* delim = strchr(message,'\n');
+  return delim;
 }
