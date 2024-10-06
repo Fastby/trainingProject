@@ -14,15 +14,10 @@ using namespace std;
 #define serv_PORT 34935
 #define SA struct sockaddr
 
-char* get_delim(char* message);
+char *get_delim(char *message);
 
-int main(/*int argc, char **argv*/) {
-  
-  
-//  if (argc != 2) {
-//    cerr << "Error: <IP address of the server>" << endl;
-//    exit(1);
-//  }
+int main() {
+
 
   struct timeval timeout;
   timeout.tv_sec = 5;
@@ -49,7 +44,7 @@ int main(/*int argc, char **argv*/) {
     cerr << ("Error: problem in connecting to the server");
     exit(1);
   }
-  cout<<"CONNECTED\n";
+  cout << "CONNECTED\n";
   fd_set readfds, writefds;
   Buffer sendbuf = Buffer();
   Buffer recvbuf = Buffer();
@@ -66,59 +61,40 @@ int main(/*int argc, char **argv*/) {
       printf("Таймаут\n");
     } else {
       if (FD_ISSET(sockfd, &writefds)) {
-        cout<<"Enter command\n";
+        cout << "Enter command\n";
         fgets(buff, MAXLINE, stdin);
-        sendbuf.add_to_buff(buff,strlen(buff));
+        sendbuf.add_to_buff(buff, strlen(buff));
         while (get_delim(sendbuf.get_buff()) != NULL) {
-          char* delim = get_delim(sendbuf.get_buff());
+          char *delim = get_delim(sendbuf.get_buff());
           char line[MAXLINE];
-          strncpy(line, sendbuf.get_buff(),delim - sendbuf.get_buff()+1);
+          strncpy(line, sendbuf.get_buff(), delim - sendbuf.get_buff() + 1);
           line[strlen(line)] = '\0';
           while (send(sockfd, line, strlen(line), 0) < 0) {
             cerr << "проблема с отправкой сообщения, повтор" << endl;
           }
           sendbuf.delete_from_buff(strlen(line));
-          memset(line,0,sizeof(line));
+          memset(line, 0, sizeof(line));
         }
         int n;
-        if((n = recv(sockfd,buff,MAXLINE, 0)) > 0){
+        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {
           recvbuf.add_to_buff(buff, n);
           while ((get_delim(recvbuf.get_buff())) != NULL) {
-            char* delim = get_delim(recvbuf.get_buff());
+            char *delim = get_delim(recvbuf.get_buff());
             char line[MAXLINE];
-            strncpy(line, recvbuf.get_buff(),delim - recvbuf.get_buff());
+            strncpy(line, recvbuf.get_buff(), delim - recvbuf.get_buff());
             line[delim - recvbuf.get_buff()] = '\0';
             cout << line << endl;
             recvbuf.delete_from_buff(strlen(line));
           }
         }
       }
-
-/*
-      if (FD_ISSET(sockfd, &readfds)) {
-        int n = 0;
-        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0){
-          recvbuf.add_to_buff(buff, n);
-          while ((get_delim(recvbuf.get_buff())) != NULL) {
-            char* delim = get_delim(recvbuf.get_buff());
-            char line[MAXLINE];
-            strncpy(line, recvbuf.get_buff(),delim - recvbuf.get_buff());
-            line[delim - recvbuf.get_buff()] = '\0';
-            cout << line << endl;
-            recvbuf.delete_from_buff(strlen(line));
-          }
-        }
-      }
-*/
-
     }
-    
   }
   close(sockfd);
   return 0;
 }
 
-char* get_delim(char* message){
-  char* delim = strchr(message,'\n');
+char *get_delim(char *message) {
+  char *delim = strchr(message, '\n');
   return delim;
 }
