@@ -11,7 +11,7 @@
 using namespace std;
 
 #define MAXLINE 100
-#define serv_PORT 34935
+#define serv_PORT 50152
 #define SA struct sockaddr
 
 char *get_delim(char *message);
@@ -76,13 +76,12 @@ int main() {
           memset(line, 0, sizeof(line));
         }
         int n;
-        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {
+        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {//Клиент не получает назад сообщения, сколько бы он не ожидал
           recvbuf.add_to_buff(buff, n);
           while ((get_delim(recvbuf.get_buff())) != NULL) {
             char *delim = get_delim(recvbuf.get_buff());
             char line[MAXLINE];
-            strncpy(line, recvbuf.get_buff(), delim - recvbuf.get_buff());
-            line[delim - recvbuf.get_buff()] = '\0';
+            strncpy(line, recvbuf.get_buff(), delim - recvbuf.get_buff()+1);
             cout << line << endl;
             recvbuf.delete_from_buff(strlen(line));
           }
