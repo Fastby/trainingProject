@@ -76,7 +76,7 @@ int main() {
           memset(line, 0, sizeof(line));
         }
         int n;
-        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {//Клиент не получает назад сообщения, сколько бы он не ожидал
+        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {
           recvbuf.add_to_buff(buff, n);
           while ((get_delim(recvbuf.get_buff())) != NULL) {
             char *delim = get_delim(recvbuf.get_buff());
