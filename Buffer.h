@@ -13,11 +13,22 @@ public:
         buff[buff_size] = '\0';
     }
     void delete_from_buff(int message_size){
-        char* new_buf = (char*)malloc(buff_size - message_size);
-        memcpy(new_buf, buff + message_size, buff_size - message_size);
-        buff = new_buf;
-        buff_size -= message_size;
-        buff[buff_size] = '\0';
+        if(buff_size <= message_size){
+            buff = (char*)realloc(buff,sizeof(char));
+            memset(buff,0,sizeof(buff));
+            buff_size = 0;
+        }
+        else{
+            char* new_buf = (char*)malloc(buff_size - message_size);
+            memcpy(new_buf, buff + message_size, buff_size - message_size);
+            free(buff);
+            buff = (char*)malloc(buff_size - message_size);
+            buff = new_buf;
+            buff_size -= message_size;
+            buff[buff_size] = '\0';
+            free(new_buf);
+        }
+        
     }
     char* get_delim(){
         char* delim = NULL;

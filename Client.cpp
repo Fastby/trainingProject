@@ -44,7 +44,6 @@ int main() {
     cerr << ("Error: problem in connecting to the server");
     exit(1);
   }
-  cout << "CONNECTED\n";
   fd_set readfds, writefds;
   Buffer sendbuf = Buffer();
   Buffer recvbuf = Buffer();
@@ -84,6 +83,7 @@ int main() {
             strncpy(line, recvbuf.get_buff(), delim - recvbuf.get_buff()+1);
             cout << line << endl;
             recvbuf.delete_from_buff(strlen(line));
+            memset(line, 0, sizeof(line));
           }
         }
       }

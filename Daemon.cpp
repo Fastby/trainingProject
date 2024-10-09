@@ -1,4 +1,5 @@
 #include "Buffer.h"
+#include "ClientSet.h"
 #include <arpa/inet.h>
 #include <cstring>
 #include <errno.h>
@@ -54,9 +55,10 @@ int main(int argc, char **argv) {
 
   Buffer recvbuf = Buffer();
   Buffer sendbuf = Buffer();
+  ClientSet cliset = ClientSet();
   fd_set connectionSet, allset;
   struct timeval timeout;
-  timeout.tv_sec = 10;
+  timeout.tv_sec = 1;
   timeout.tv_usec = 0;
   int nready, connfd, sockfd;
   char line[MAXLINE];
@@ -67,18 +69,18 @@ int main(int argc, char **argv) {
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
 
-
     int ret = select(listenfd + 1, &connectionSet, NULL, NULL, &timeout);
     if (ret == -1) {
       perror("select");
     } else if (ret == 0) {
       for (int i = 0; i < FD_SETSIZE; i++) {
-        if ((sockfd = client[i]) < 0)
+        if ((sockfd = cliset.getFD(i)) < 0)
           continue;
-        if (FD_ISSET(sockfd, &allset)) {
+        if (FD_ISSET(sockfd, cliset.getSet())) {
           int n;
           if ((n = read(sockfd, line, MAXLINE)) == 0) {
             close(sockfd);
+            cliset.deleteClient(i);
             FD_CLR(sockfd, &allset);
             client[i] = FREE_ELEMENT;
           } else
@@ -92,24 +94,13 @@ int main(int argc, char **argv) {
           return EXIT_FAILURE;
         }
         cout << "connected with new client!\n";
-
-        for (int i = 0; i < FD_SETSIZE; i++) {
-          if (client[i] == FREE_ELEMENT) {
-            client[i] = connfd; /*Сохранение дескриптора на последнюю позицию в массиве*/
-            if (i > maxi)
-              maxi = i;
-            break;
-          }
-
-          if (i == FD_SETSIZE - 1) {
-            cerr << "Error: too many clients\n";
-            return EXIT_FAILURE;
-          }
+        try{
+          cliset.addClient(connfd);
         }
-        FD_SET(connfd,&allset); /*Добавление нового дескриптора к существующему набору*/
-
-        if (connfd > maxfd)
-          maxfd = connfd;
+        catch(const char* error_message){
+          cout<<error_message<<endl;
+        }
+        
     }
   }
   return 0;
