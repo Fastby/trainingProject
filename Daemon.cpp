@@ -1,5 +1,5 @@
-#include "Buffer.h"
-#include "ClientSet.h"
+#include "headers/Buffer.h"
+#include "headers/ClientSet.h"
 #include <arpa/inet.h>
 #include <cstring>
 #include <errno.h>
@@ -17,7 +17,8 @@ using namespace std;
 #define LISTENQ 1024
 #define FREE_ELEMENT -1
 
-char *get_delim(char *message);
+void acceptConnection(int* connfd, ClientSet* clientset, int* listenfd);
+void readFD(int sockfd, int pos, ClientSet* cliset);
 
 int main(int argc, char **argv) {
 
@@ -47,12 +48,6 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  int maxfd = 0;
-  int maxi = FREE_ELEMENT;
-  int client[FD_SETSIZE];
-  for (int i = 0; i < FD_SETSIZE; i++)
-    client[i] = FREE_ELEMENT;
-
   Buffer recvbuf = Buffer();
   Buffer sendbuf = Buffer();
   ClientSet cliset = ClientSet();
@@ -60,9 +55,7 @@ int main(int argc, char **argv) {
   struct timeval timeout;
   timeout.tv_sec = 1;
   timeout.tv_usec = 0;
-  int nready, connfd, sockfd;
-  char line[MAXLINE];
-  FD_ZERO(&allset);
+  int connfd, sockfd;
   while (true) {
     FD_ZERO(&connectionSet);
     FD_SET(listenfd, &connectionSet);
@@ -73,45 +66,53 @@ int main(int argc, char **argv) {
     if (ret == -1) {
       perror("select");
     } else if (ret == 0) {
-      for (int i = 0; i < FD_SETSIZE; i++) {
-        if ((sockfd = cliset.getFD(i)) < 0)
-          continue;
-        if (FD_ISSET(sockfd, cliset.getSet())) {
-          int n;
-          if ((n = read(sockfd, line, MAXLINE)) == 0) {
-            close(sockfd);
-            cliset.deleteClient(i);
-            FD_CLR(sockfd, &allset);
-            client[i] = FREE_ELEMENT;
-          } else
-            write(sockfd, line, n);
-        }
-      }
+
+      for (int i = 0; i < cliset.getMaxi() + 1; i++) 
+        readFD(sockfd, i, &cliset);
+      
     } else {
-        connfd = accept(listenfd, (SA *)&cliaddr, &clilen);
-        if (connfd == -1) {
-          perror("accept");
-          return EXIT_FAILURE;
-        }
-        cout << "connected with new client!\n";
-        try{
-          cliset.addClient(connfd);
-        }
-        catch(const char* error_message){
-          cout<<error_message<<endl;
-        }
-        
+        acceptConnection(&connfd,&cliset,&listenfd);
     }
   }
   return 0;
 }
 
+
+void acceptConnection(int* connfd, ClientSet* clientset, int* listenfd){
+  *connfd = accept(*listenfd, (SA *)NULL, NULL);
+  if (*connfd == -1) {
+    throw "error: accept";
+  }
+  cout << "connected with new client!\n";
+  try{
+    (*clientset).addClient(*connfd);
+  }
+  catch(const char* error_message){
+    cout<<error_message<<endl;
+  }
+}
+
+void readFD(int sockfd, int pos, ClientSet* cliset){
+  if ((sockfd = (*cliset).getFD(pos)) < 0)
+      return;
+    if (FD_ISSET(sockfd, (*cliset).getSet())) {
+      int n;
+      char line[MAXLINE];
+      if ((n = read(sockfd, line, MAXLINE)) == 0) {
+        close(sockfd);
+        (*cliset).deleteClient(pos);
+      } else
+        write(sockfd, line, n);
+    }
+}
+
+/*
 char *get_delim(char *message) {
   char *delim = strchr(message, '\n');
   return delim;
 }
 
-/*void Parse(char *buff, char *com,char *val) { //требуется дописать для
+void Parse(char *buff, char *com,char *val) { //требуется дописать для
 получения значения команды char *space = strchr(buff, ' '); if (space != NULL) {
     strncpy(com, buff, space - buff);
     com[space - buff] = '\0';

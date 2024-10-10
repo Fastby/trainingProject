@@ -1,4 +1,5 @@
-#include "Buffer.h"
+#include "headers/Buffer.h"
+#include "headers/FD_Connection.h"
 #include <arpa/inet.h>
 #include <cstring>
 #include <errno.h>
@@ -11,7 +12,7 @@
 using namespace std;
 
 #define MAXLINE 100
-#define serv_PORT 50152
+#define SERV_PORT 50152
 #define SA struct sockaddr
 
 char *get_delim(char *message);
@@ -23,43 +24,30 @@ int main() {
   timeout.tv_sec = 5;
   timeout.tv_usec = 0;
 
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  servaddr.sin_port = htons(serv_PORT);
-
-  if (inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr) <= 0) {
-    cerr << ("Error: inet_pton error for %s", "127.0.0.1");
-    exit(1);
+  FD_Connection con = FD_Connection();
+  
+  try{
+    con.Connect("127.0.0.1", SERV_PORT);
+  } catch(char* error_message){
+    cout<<error_message<<endl;
+    return EXIT_FAILURE;
   }
-
-  int sockfd;
-  if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    cerr << "Error: problem in creating socket" << endl;
-    exit(1);
-  }
-
-  if (connect(sockfd, (SA *)&servaddr, sizeof(servaddr)) < 0) {
-    cerr << ("Error: problem in connecting to the server");
-    exit(1);
-  }
-  fd_set readfds, writefds;
+  
+  fd_set writefds;
   Buffer sendbuf = Buffer();
   Buffer recvbuf = Buffer();
+
   while (1) {
-    FD_ZERO(&readfds);
     FD_ZERO(&writefds);
-    FD_SET(sockfd, &readfds);
-    FD_SET(sockfd, &writefds);
+    FD_SET(con.getSocket(), &writefds);
     char buff[MAXLINE + 1];
-    int ret = select(sockfd + 1, &readfds, &writefds, NULL, NULL);
+    int ret = select(con.getSocket() + 1, NULL, &writefds, NULL, NULL);
     if (ret == -1) {
       perror("select");
     } else if (ret == 0) {
       printf("Таймаут\n");
     } else {
-      if (FD_ISSET(sockfd, &writefds)) {
+      if (FD_ISSET(con.getSocket(), &writefds)) {
         cout << "Enter command\n";
         fgets(buff, MAXLINE, stdin);
         sendbuf.add_to_buff(buff, strlen(buff));
@@ -68,14 +56,14 @@ int main() {
           char line[MAXLINE];
           strncpy(line, sendbuf.get_buff(), delim - sendbuf.get_buff() + 1);
           line[strlen(line)] = '\0';
-          while (send(sockfd, line, strlen(line), 0) < 0) {
+          while (send(con.getSocket(), line, strlen(line), 0) < 0) {
             cerr << "проблема с отправкой сообщения, повтор" << endl;
           }
           sendbuf.delete_from_buff(strlen(line));
           memset(line, 0, sizeof(line));
         }
         int n;
-        if ((n = recv(sockfd, buff, MAXLINE, 0)) > 0) {
+        if ((n = recv(con.getSocket(), buff, MAXLINE, 0)) > 0) {
           recvbuf.add_to_buff(buff, n);
           while ((get_delim(recvbuf.get_buff())) != NULL) {
             char *delim = get_delim(recvbuf.get_buff());
@@ -89,7 +77,7 @@ int main() {
       }
     }
   }
-  close(sockfd);
+  
   return 0;
 }
 
