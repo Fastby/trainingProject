@@ -1,6 +1,6 @@
-#include "headers/Buffer.h"
-#include "headers/ClientSet.h"
-#include "headers/FD_Listener.h"
+#include "../headers/Buffer.h"
+#include "../headers/ClientSet.h"
+#include "../headers/FD_Listener.h"
 #include <arpa/inet.h>
 #include <cstring>
 #include <errno.h>
@@ -12,10 +12,7 @@
 #include <fcntl.h>
 using namespace std;
 
-#define MAXLINE 100
-#define serv_PORT 50152
-#define SA struct sockaddr
-#define LISTENQ 1024
+#define MAXLINE 1024
 #define FREE_ELEMENT -1
 
 void acceptConnection(int* connfd, ClientSet* clientset, int* listenfd);
@@ -102,7 +99,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-// функция readFD
+
 int readFD(int sockfd, int pos, ClientSet* cliset) {
   char buffer[MAXLINE];
   int bytes_read = recv(sockfd, buffer, MAXLINE, 0);

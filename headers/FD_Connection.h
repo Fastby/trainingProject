@@ -18,7 +18,7 @@ public:
 
     FD_Connection(){
         memset(&servaddr,0,sizeof(servaddr));
-        
+        sockfd = 0;
     }
 
     void Connect(char* addr, int port){

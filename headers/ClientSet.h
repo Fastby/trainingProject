@@ -16,8 +16,7 @@ public:
   void addClient(int connfd) {
     for (int i = 0; i < FD_SETSIZE; i++) {
       if (clients[i] == FREE_ELEMENT) {
-        clients[i] =
-            connfd; /*Сохранение дескриптора на последнюю позицию в массиве*/
+        clients[i] = connfd; /*Сохранение дескриптора на последнюю позицию в массиве*/
         if (i > maxi)
           maxi = i;
         break;
@@ -40,10 +39,17 @@ public:
 
   int getMaxi(){return maxi;}
 
+  int getMaxFD(){
+    int result = 0;
+    for(int i = 0; i <= maxi; i++)
+      if(clients[i] > result)result = clients[i];
+    return result;
+  }
+
   fd_set *getSet() { return &clientset; }
 
   ClientSet() {
-    maxi = 0;
+    maxi = -1;
     for (int i = 0; i < FD_SETSIZE; i++)
       clients[i] = FREE_ELEMENT;
     maxfd = 0;
