@@ -2,7 +2,7 @@
 #include <sys/socket.h>
 #include <iostream>
 #include <netinet/in.h>
-#include <string.h>
+#include <cstring>
 
 #define serv_PORT 50152
 #define LISTENQ 1024
@@ -12,45 +12,27 @@ class FD_Listener{
 private:
     struct sockaddr_in servaddr;
     int listenfd;
-    void initializeSocket(){
-        listenfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (listenfd < 0) {
-          throw "Error: creating socket";
-        }
-    }
-
-    void bindSocket(){
-        if (bind(listenfd, (SA *)&servaddr, sizeof(servaddr)) < 0) {
-          throw "Error: bind error";
-        }
-        if (listen(listenfd, LISTENQ) < 0) {
-          throw "Error: listen";
-        }
-    }
+    
 
 public:
 
-    int InitializeSocket(){
-        try{
-            initializeSocket();
-            return EXIT_SUCCESS;
+    unsigned short int initializeSocket(){
+        listenfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (listenfd < 0) {
+          perror("Failed to create socket\n");
+          return EXIT_FAILURE;
         }
-        catch(char* exc){
-            return EXIT_FAILURE;
-        }
+        return EXIT_SUCCESS;
     }
-    
-    int* getFD(){return &listenfd;}
 
-    int BindSocket(){
-        try{
-            bindSocket();
-            return EXIT_SUCCESS;
-        }
-        catch(char* exc){
-            return EXIT_FAILURE;
-        }
+    unsigned short int bindSocket(){
+      if (bind(listenfd, (SA *)&servaddr, sizeof(servaddr)) < 0 || listen(listenfd, LISTENQ) < 0) {
+        return EXIT_FAILURE;
+      }
+      return EXIT_SUCCESS;
     }
+
+    int* getFD(){return &listenfd;}
 
     FD_Listener(){
         listenfd = -1;

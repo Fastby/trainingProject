@@ -1,6 +1,6 @@
-#include "../headers/Buffer.h"
-#include "../headers/ClientSet.h"
-#include "../headers/FD_Listener.h"
+#include <Buffer.h>
+#include <ClientSet.h>
+#include <FD_Listener.h>
 #include <arpa/inet.h>
 #include <cstring>
 #include <errno.h>
@@ -12,16 +12,17 @@
 #include <fcntl.h>
 using namespace std;
 
-#define MAXLINE 1024
 #define FREE_ELEMENT -1
 
 void acceptConnection(int* connfd, ClientSet* clientset, int* listenfd);
-int readFD(int sockfd, int pos, ClientSet* cliset);
+int readFD(int sockfd);
 
-int main(int argc, char **argv) {
+
+
+int main() {
   FD_Listener listener = FD_Listener();
 
-  listener.InitializeSocket();
+  listener.initializeSocket();
 
   int flags = fcntl(*listener.getFD(), F_GETFL, 0);
   if (flags == -1) {
@@ -34,18 +35,15 @@ int main(int argc, char **argv) {
     perror("fcntl");
     return EXIT_FAILURE;
   }
-
-  struct sockaddr_in  cliaddr;
-  socklen_t clilen = sizeof(cliaddr);
   
-  listener.BindSocket();
+  listener.bindSocket();
 
   ClientSet cliset = ClientSet();
   fd_set connectionSet, allset;
   struct timeval timeout;
   timeout.tv_sec = 1;
   timeout.tv_usec = 0;
-  int connfd, sockfd;
+  int connfd;
 
   while (true) {
     FD_ZERO(&connectionSet);
@@ -68,7 +66,7 @@ int main(int argc, char **argv) {
         FD_SET(sockfd, &allset);
       }
     }
-
+  
     ret = select(cliset.getMaxFD() + 1, &allset, NULL, NULL, &timeout);
     if (ret == -1) {
       perror("select");
@@ -77,7 +75,7 @@ int main(int argc, char **argv) {
       for (int i = 0; i <= cliset.getMaxi(); i++) {
         int sockfd = cliset.getFD(i);
         if (sockfd >= 0 && FD_ISSET(sockfd, &allset)) {
-          int bytes_read = readFD(sockfd, i, &cliset);
+          int bytes_read = readFD(sockfd);
           if (bytes_read < 0) {
             
             if (errno == EWOULDBLOCK) {
@@ -86,7 +84,6 @@ int main(int argc, char **argv) {
               perror("readFD");
               exit(1);
             }
-
           } else if (bytes_read == 0) {
             close(sockfd);
             cliset.deleteClient(i);
@@ -100,7 +97,7 @@ int main(int argc, char **argv) {
 }
 
 
-int readFD(int sockfd, int pos, ClientSet* cliset) {
+int readFD(int sockfd) {
   char buffer[MAXLINE];
   int bytes_read = recv(sockfd, buffer, MAXLINE, 0);
   if (bytes_read < 0) {

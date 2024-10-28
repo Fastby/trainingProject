@@ -1,6 +1,6 @@
 #pragma once
-#include "sys/socket.h"
-#include <stdio.h>
+#include <sys/socket.h>
+#include <iostream>
 #include <unistd.h>
 
 #define FREE_ELEMENT -1

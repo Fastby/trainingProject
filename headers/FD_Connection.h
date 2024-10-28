@@ -21,20 +21,21 @@ public:
         sockfd = 0;
     }
 
-    void Connect(char* addr, int port){
+    unsigned short int Connect(char* addr, int port){
         servaddr.sin_family = AF_INET;
         servaddr.sin_addr.s_addr = inet_addr(addr);
         servaddr.sin_port = htons(port);
 
         if (inet_pton(AF_INET, addr, &servaddr.sin_addr) <= 0)
-            throw ("Error: inet_pton error for %s", addr);
+            return EXIT_FAILURE;
 
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-            throw "Error: problem in creating socket";
+            return EXIT_FAILURE;
 
         if (connect(sockfd, (SA *)&servaddr, sizeof(servaddr)) < 0)
-            throw "Error: problem in connecting to the server";
+            return EXIT_FAILURE;
         
+        return EXIT_SUCCESS;
     }
 
     void closeConnection(){close(sockfd);}
